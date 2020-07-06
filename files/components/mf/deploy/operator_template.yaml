@@ -1,0 +1,102 @@
+###############################################################################
+# Licensed Materials - Property of IBM.
+# Copyright IBM Corporation 2019. All Rights Reserved.
+# U.S. Government Users Restricted Rights - Use, duplication or disclosure
+# restricted by GSA ADP Schedule Contract with IBM Corp.
+#
+# Contributors:
+# IBM Corporation - initial API and implementation
+###############################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mf-operator
+  labels:
+    app.kubernetes.io/name: mf-operator
+    app.kubernetes.io/instance: mf-instance
+    app.kubernetes.io/managed-by: helm
+    release: mf-operator-_IMG_TAG_
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: mf-operator
+  template:
+    metadata:
+      labels:
+        name: mf-operator
+        app.kubernetes.io/name: mf-operator
+        app.kubernetes.io/instance: mf-instance
+        app.kubernetes.io/managed-by: helm
+        release: mf-operator-_IMG_TAG_
+      annotations:
+        productName: "IBM MobileFirst Platform Foundation"
+        productID: "9380ea99ddde4f5f953cf773ce8e57fc"
+        productVersion: "8.0"
+    spec:
+      hostIPC: false
+      hostNetwork: false
+      hostPID: false
+      serviceAccountName: mf-operator
+      imagePullSecrets:
+        - name: _IMG_PULLSECRET_
+      containers:
+        - name: mf-operator
+          image: _IMG_REPO_/mf-operator:_IMG_TAG_
+          imagePullPolicy: _IMG_PULLPOLICY_
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: mf-operator
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            runAsUser: 1001
+            capabilities:
+              drop:
+              - ALL
+          resources:
+            requests:
+              cpu: 400m
+              memory: 500Mi 
+            limits:
+              cpu: 750m
+              memory: 600Mi
+          livenessProbe:
+            exec:
+              command:
+              - cd 
+              - .
+          readinessProbe:
+            exec:
+              command:
+              - cd
+              - .
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: beta.kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 3
+            preference:
+              matchExpressions:
+              - key: beta.kubernetes.io/arch
+                operator: In
+                values:
+                - amd64

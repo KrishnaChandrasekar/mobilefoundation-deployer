@@ -1,0 +1,197 @@
+#!/bin/bash
+
+#
+#  Get all the deployment values as json
+#
+export inputs_json=$1
+
+export SCRIPT_DIR=$PWD
+export CASE_FILES_DIR="${SCRIPT_DIR}/files"
+export CASE_FILES_TEMP_DIR=${CASE_FILES_DIR}/temp-DO_NOT_DELETE
+
+mkdir -p ${CASE_FILES_TEMP_DIR}
+
+if [ "$CICD" != "true" ]
+then
+    source ${CASE_FILES_DIR}/install/utils/set_colors.sh
+fi
+
+exitDeploymentOnFailure()
+{
+    RC=$1
+    MSG=$2
+    if [ $RC -ne 0 ]
+    then
+        echo -e "${Red}${MSG}\nExiting ...\n${Color_Off}"
+        exit $RC
+    else
+        echo -e "${BGreen}  OK${Color_Off}\n"
+    fi
+}
+
+# 
+#  Command help text
+#
+Help()
+{
+   # Display Help
+   echo
+   echo "To install Mobile Foundation on OpenShift Cluster."
+   echo
+   echo -e "${BBlue}Syntax:${Color_Off} ${Blue}./install-mf <deployment_values.json> ${Color_Off}"
+   echo
+   echo -e "${BBlue}Options:${Color_Off}"
+   echo -e "${Cyan} <deployment_values.json>     Simple JSON format file with all the deployment config values.${Color_Off}"
+   echo
+   exit 0
+}
+
+# 
+#  Prompts user for Docker/Image registry details 
+#
+getImgRegistryDetails()
+{
+    echo
+
+    while [[ -z "$DOCKER_REGISTRY" ]]
+    do
+    echo
+    read -p "Docker registry > " DOCKER_REGISTRY
+    done
+
+    while [[ -z "$DOCKER_REGISTRY_USER" ]]
+    do
+    echo
+    read -p "Docker registry userid > " DOCKER_REGISTRY_USER
+    done
+
+    while [[ -z "$DOCKER_REGISTRY_PASSWORD" ]]
+    do
+    echo
+    read -s -p "Docker registry password > " DOCKER_REGISTRY_PASSWORD
+    done
+
+    export DOCKER_REGISTRY=$DOCKER_REGISTRY
+    export DOCKER_REGISTRY_USER=$DOCKER_REGISTRY_USER
+    export DOCKER_REGISTRY_PASSWORD=$DOCKER_REGISTRY_PASSWORD
+}
+
+source ${CASE_FILES_DIR}/install/utils/banner.sh
+
+if [ -z "$1" ]
+  then
+    echo
+    echo -e "${Red}No argument supplied.${Color_Off}"
+    Help
+fi
+
+echo -e "${Bold}\nPrerequisites check.\n${Color_Off}"
+
+sleep 2
+
+echo -e "Checking if the ${Bold}jq${Color_Off} utility is installed ... "
+which jq  >/dev/null 2>&1
+RC=$?
+exitDeploymentOnFailure "$RC" "\njq is not installed.\nInstall jq & retry the installer."
+
+echo -e "Checking if the ${Bold}oc${Color_Off} cli is installed ..."
+which oc  >/dev/null 2>&1
+RC=$?
+exitDeploymentOnFailure "$RC" "\noc cli is not installed.\nInstall oc cli & retry the installer."
+
+DEPLOYMENT_JSON_FILE=$(echo "$inputs_json" | sed "s/.*\///")
+
+echo -e "Checking if ${Cyan}${DEPLOYMENT_JSON_FILE}${Color_Off} file exists ..."
+if [ ! -f "${inputs_json}" ]
+then
+	exitDeploymentOnFailure "1" "\n${inputs_json} doesnt exists."
+else
+    echo -e "${BGreen}  OK${Color_Off}\n"
+fi
+
+echo -e "Validating ${Cyan}${DEPLOYMENT_JSON_FILE}${Color_Off} file ..."
+cat ${inputs_json} | jq . >/dev/null 2>&1
+RC=$?
+exitDeploymentOnFailure "$RC" "\nValidaton failed for ${DEPLOYMENT_JSON_FILE}. It is not well formed. \nPlease check for correctness."
+
+#
+# Check if OCP login session is available
+#
+echo -e "Checking if the cluster login session is valid ..."
+oc get pods >/dev/null 2>&1
+RC=$?
+exitDeploymentOnFailure "$RC" "Deployment needs a login session to the cluster.\nEnsure you run the \"oc login \" command with right credentials and retry the installer."
+
+
+echo -e "${Bold}\nInitialize environment variables for Mobile Foundation deployment.${Color_Off}"
+echo 
+
+#
+# Convert the input.json into the script which generates the commands to 
+# setup environment variables
+#
+echo -e "Setting the deployment values into Environment variables ... "
+cat ${inputs_json} | jq -r '. | keys[] as $k | "export \($k)=\(.[$k] | .)"'  > ${CASE_FILES_DIR}/set_deployment_values.sh
+
+chmod +x ${CASE_FILES_DIR}/set_deployment_values.sh
+
+source ${CASE_FILES_DIR}/set_deployment_values.sh
+RC=$?
+exitDeploymentOnFailure "$RC" "Failed to set the deployment values for the work environment."
+
+rm -f ${CASE_FILES_DIR}/set_deployment_values.sh
+
+#
+#  get current projectname
+#
+export JOB_NAMESPACE=$(oc project -q)
+
+if [[ ${JOB_NAMESPACE} == "openshift"* ]] || [[ ${JOB_NAMESPACE} == "kube-"* ]] || [[ ${JOB_NAMESPACE} == "ibm-"* ]] || [[ ${JOB_NAMESPACE} == "tigera-"* ]] || [[ ${JOB_NAMESPACE} == "calico"* ]] || [[ ${JOB_NAMESPACE} == "rook-"* ]]
+then 
+	exitDeploymentOnFailure "1" "\nMobile Foundation deployment must not be within system namespaces.\nRetry the deployment in a user created project/namespace"
+fi
+
+#
+#  set the images registry details
+#
+
+if [ -z "$DOCKER_REGISTRY" ] || [ -z "$DOCKER_REGISTRY_USER" ] || [ -z "$DOCKER_REGISTRY_PASSWORD" ]
+then
+    getImgRegistryDetails
+else
+    echo -e "Environment variables - DOCKER_REGISTRY, DOCKER_REGISTRY_USER, DOCKER_REGISTRY_PASSWORD are set.\n${BGreen}  OK${Color_Off}\n"
+fi
+echo -e "Authenticating into the external docker registry - ${Cyan}${DOCKER_REGISTRY}${Color_Off} using user - ${Cyan}${DOCKER_REGISTRY_USER}${Color_Off} ... "
+docker login ${DOCKER_REGISTRY} -u ${DOCKER_REGISTRY_USER} -p ${DOCKER_REGISTRY_PASSWORD} >/dev/null 2>&1
+RC=$?
+exitDeploymentOnFailure "$RC" "\nEnsure correct authentication details are set and re-run the installer."
+
+
+#
+#  set ingress secretname
+#
+echo -e "Getting ingress secret name ... "
+INGRESS_SECRET_NAME=$(oc get route console -n openshift-console -o jsonpath='{@.status.ingress[].routerCanonicalHostname}' | cut -f1 -d".")
+RC=$?
+exitDeploymentOnFailure "$RC" "\nFailed to get the ingress secretname."
+
+echo -e "Setting ingress secret name ... "
+oc get secret ${INGRESS_SECRET_NAME} -n openshift-ingress  > /dev/null 2>&1
+RC=$?
+if [ $RC -eq 0 ]; then
+    export INGRESS_SECRET_NAME=${INGRESS_SECRET_NAME} 
+else
+    export INGRESS_SECRET_NAME="mobilefoundation-ingress-tls-secret"
+fi
+echo -e "${BGreen}  OK${Color_Off}\n"
+
+#
+#  get ingress hostname
+#
+echo -e "Setting ingress hostname ... "
+export INGRESS_HOSTNAME=$(oc get route console -n openshift-console -o jsonpath='{@.status.ingress[].routerCanonicalHostname}')
+RC=$?
+exitDeploymentOnFailure "$RC" "\nFailed to get the ingress secretname."
+
+${CASE_FILES_DIR}/install/install.sh
+echo

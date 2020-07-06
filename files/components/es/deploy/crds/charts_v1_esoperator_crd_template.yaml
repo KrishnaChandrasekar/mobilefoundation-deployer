@@ -1,0 +1,44 @@
+###############################################################################
+# Licensed Materials - Property of IBM.
+# Copyright IBM Corporation 2019. All Rights Reserved.
+# U.S. Government Users Restricted Rights - Use, duplication or disclosure
+# restricted by GSA ADP Schedule Contract with IBM Corp.
+#
+# Contributors:
+# IBM Corporation - initial API and implementation
+###############################################################################
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: esoperators.es.ibm.com
+  labels:
+    app.kubernetes.io/name: es-operator
+    app.kubernetes.io/instance: es-instance
+    app.kubernetes.io/managed-by: helm
+    release: es-operator-_IMG_TAG_
+spec:
+  group: es.ibm.com
+  names:
+    kind: ESOperator
+    listKind: ESOperatorList
+    plural: esoperators
+    shortNames:
+    - es
+    singular: esoperator
+  scope: Namespaced
+  subresources:
+    status: {}
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          type: string
+        kind:
+          type: string
+        metadata:
+          type: object

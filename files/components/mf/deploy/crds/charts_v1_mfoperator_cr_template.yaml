@@ -1,0 +1,255 @@
+apiVersion: mf.ibm.com/v1
+kind: MFOperator
+metadata:
+  name: sample-mf
+  labels:
+    app.kubernetes.io/name: mf-operator
+    app.kubernetes.io/instance: mf-instance
+    app.kubernetes.io/managed-by: helm
+    release: mf-operator-_IMG_TAG_
+spec:
+  ###############################################################################
+  # Licensed Materials - Property of IBM.
+  # Copyright IBM Corporation 2019. All Rights Reserved.
+  # U.S. Government Users Restricted Rights - Use, duplication or disclosure
+  # restricted by GSA ADP Schedule Contract with IBM Corp.
+  #
+  # Contributors:
+  # IBM Corporation - initial API and implementation
+  ###############################################################################
+  
+  ###############################################################################
+  # Default values for MFOperator
+  # This is a YAML-formatted file.
+  # Declare variables to be passed into your templates.
+  ###############################################################################
+  
+  ###############################################################################
+  # Specify architecture (amd64, ppc64le, s390x) and weight to be  used for scheduling as follows :
+  #   0 - Do not use
+  #   1 - Least preferred
+  #   2 - No preference
+  #   3 - Most preferred
+  # Note: IBM Mobile Foundation Package for Openshift currently supports only amd64 architecture.
+  ###############################################################################
+  
+  ###############################################################################
+  ## Global configuration
+  ###############################################################################
+  global:
+    arch:
+      amd64: "3 - Most preferred"
+      ppc64le: "0 - Do not use"
+      s390x: "0 - Do not use"
+    image:
+      pullPolicy: _IMG_PULLPOLICY_
+      pullSecret: _IMG_PULLSECRET_
+    ingress:
+      hostname: "_INGRESS_HOSTNAME_"
+      secret: "_INGRESS_SECRET_"
+      sslPassThrough: _SSL_PASSTHROUGH_
+    https: _ENABLE_HTTPS_
+    dbinit:
+      enabled: _DBINIT_ENABLE_
+      repository: _IMG_REPO_/mfpf-dbinit
+      tag: _IMG_TAG_
+      resources:
+        requests:
+          cpu: _DBINIT_RR_CPU_
+          memory: _DBINIT_RR_MEM_
+        limits:
+          cpu: _DBINIT_RL_CPU_
+          memory: _DBINIT_RL_MEM_
+  ###############################################################################
+  ## MFP Server configuration
+  ###############################################################################
+  mfpserver:
+    enabled: _SERVER_ENABLE_
+    repository: _IMG_REPO_/mfpf-server
+    tag: _IMG_TAG_
+    consoleSecret: "_SERVER_CONSOLE_SECRET_"
+    db:
+      type: "_DB_TYPE_"
+      host: "_MFPF_DB_HOST_"
+      port: "_MFPF_DB_PORT_"
+      name: "_MFPF_DB_NAME_"
+      secret: "_MFPF_DB_SECRET_"
+      schema: "_SERVER_DB_SCHEMA_"
+      ssl: "_MFPF_DB_SSL_ENABLE_"
+      driverPvc: "_MFPF_DB_DRIVER_PVC_"
+      adminCredentialsSecret: "_MFPF_DBADMIN_CRED_SECRET_"
+    adminClientSecret: "_SERVER_ADMINCLIENT_SECRET_"
+    pushClientSecret: "_SERVER_PUSHCLIENT_SECRET_"
+    liveupdateClientSecret: "_SERVER_LUCLIENT_SECRET_"
+    internalClientSecretDetails:
+      adminClientSecretId: _SERVER_ICS_ADMINCLIENT_SECRET_ID_
+      adminClientSecretPassword: _SERVER_ICS_ADMINCLIENT_SECRET_PASSWORD_
+      pushClientSecretId: _SERVER_ICS_PUSHCLIENT_SECRETID_
+      pushClientSecretPassword: _SERVER_ICS_PUSHCLIENT_SECRET_PASSWORD_
+    replicas: _SERVER_REPLICAS_
+    autoscaling:
+      enabled: _SERVER_AUTOSCALING_ENABLE_
+      min: _SERVER_AUTOSCALING_MIN_
+      max: _SERVER_AUTOSCALING_MAX_
+      targetcpu: _SERVER_AUTOSCALING_TARGET_CPU_
+    pdb:
+      enabled: _SERVER_PDB_ENABLE_
+      min: _SERVER_PDB_MIN_
+    customConfiguration: "_SERVER_CUST_CONFIG_"
+    keystoreSecret: "_SERVER_KEYSTORE_SECRET_"
+    resources:
+      requests:
+        cpu: _SERVER_RR_CPU_
+        memory: _SERVER_RR_MEM_
+      limits:
+        cpu: _SERVER_RL_CPU_
+        memory: _SERVER_RL_MEM_
+  ###############################################################################
+  ## MFP Push configuration
+  ###############################################################################
+  mfppush:
+    enabled: _PUSH_ENABLE_
+    repository: _IMG_REPO_/mfpf-push
+    tag: _IMG_TAG_
+    replicas: _PUSH_REPLICAS_
+    autoscaling:
+      enabled: _PUSH_AUTOSCALING_ENABLE_
+      min: _PUSH_AUTOSCALING_MIN_
+      max: _PUSH_AUTOSCALING_MAX_
+      targetcpu: _PUSH_AUTOSCALING_TARGET_CPU_
+    pdb:
+      enabled: _PUSH_PDB_ENABLE_
+      min: _PUSH_PDB_MIN_
+    customConfiguration: "_PUSH_CUST_CONFIG_"
+    keystoreSecret: "_PUSH_KEYSTORE_SECRET_"
+    resources:
+      requests:
+        cpu: _PUSH_RR_CPU_
+        memory: _PUSH_RR_MEM_
+      limits:
+        cpu: _PUSH_RL_CPU_
+        memory: _PUSH_RL_MEM_
+  ###############################################################################
+  ## MFP Liveupdate configuration
+  ###############################################################################
+  mfpliveupdate:
+    enabled: _LU_ENABLE_
+    repository: _IMG_REPO_/mfpf-liveupdate
+    tag: _IMG_TAG_
+    db:
+      type: "_DB_TYPE_"
+      host: "_MFPF_DB_HOST_"
+      port: "_MFPF_DB_PORT_"
+      name: "_MFPF_DB_NAME_"
+      secret: "_MFPF_DB_SECRET_"
+      schema: "_LU_DB_SCHEMA_"
+      ssl: "_MFPF_DB_SSL_ENABLE_"
+      driverPvc: "_MFPF_DB_DRIVER_PVC_"
+      adminCredentialsSecret: "_MFPF_DBADMIN_CRED_SECRET_"
+    replicas: _LU_REPLICAS_
+    autoscaling:
+      enabled: _LU_AUTOSCALING_ENABLE_
+      min: _LU_AUTOSCALING_MIN_
+      max: _LU_AUTOSCALING_MAX_
+      targetcpu: _LU_AUTOSCALING_TARGET_CPU_
+    pdb:
+      enabled: _LU_PDB_ENABLE_
+      min: _LU_PDB_MIN_
+    customConfiguration: "_LU_CUST_CONFIG_"
+    keystoreSecret: "_LU_KEYSTORE_SECRET_"
+    resources:
+      requests:
+        cpu: _LU_RR_CPU_
+        memory: _LU_RR_MEM_
+      limits:
+        cpu: _LU_RL_CPU_
+        memory: _LU_RL_MEM_
+  ###############################################################################
+  ## MFP Analytics configuration
+  ###############################################################################
+  mfpanalytics:
+    enabled: _ANALYTICS_ENABLE_
+    repository: _IMG_REPO_/mfpf-analytics
+    tag: _IMG_TAG_
+    consoleSecret: "_ANALYTICS_CONSOLE_SECRET_"
+    replicas: _ANALYTICS_REPLICAS_
+    autoscaling:
+      enabled: _ANALYTICS_AUTOSCALING_ENABLE_
+      min: _ANALYTICS_AUTOSCALING_MIN_
+      max: _ANALYTICS_AUTOSCALING_MAX_
+      targetcpu: _ANALYTICS_AUTOSCALING_TARGET_CPU_
+    pdb:
+      enabled: _ANALYTICS_PDB_ENABLE_
+      min: _ANALYTICS_PDB_MIN_
+    esnamespace: "_ANALYTICS_ES_NAMESPACE_" 
+    customConfiguration: "_ANALYTICS_CUST_CONFIG_"
+    keystoreSecret: "_ANALYTICS_KEYSTORE_SECRET_"
+    resources:
+      requests:
+        cpu: _ANALYTICS_RR_CPU_
+        memory: _ANALYTICS_RR_MEM_
+      limits:
+        cpu: _ANALYTICS_RL_CPU_
+        memory: _ANALYTICS_RL_MEM_
+ ###############################################################################
+  ## MFP Analytics Receiver configuration
+ ###############################################################################
+  mfpanalytics_recvr:
+    enabled: _RECVR_ENABLE_
+    repository: _IMG_REPO_/mfpf-analytics-recvr
+    tag: _IMG_TAG_
+    replicas: _RECVR_REPLICAS_
+    autoscaling:
+      enabled: _RECVR_AUTOSCALING_ENABLE_
+      min: _RECVR_AUTOSCALING_MIN_
+      max: _RECVR_AUTOSCALING_MAX_
+      targetcpu: _RECVR_AUTOSCALING_TARGET_CPU_
+    pdb:
+      enabled: _RECVR_PDB_ENABLE_
+      min: _RECVR_PDB_MIN_
+    analyticsRecvrSecret: "_RECVR_SECRET_"
+    customConfiguration: "_RECVR_CUST_CONFIG_"
+    keystoreSecret: "_RECVR_KEYSTORE_SECRET_"
+    resources:
+      requests:
+        cpu: _RECVR_RR_CPU_
+        memory: _RECVR_RR_MEM_
+      limits:
+        cpu: _RECVR_RL_CPU_
+        memory: _RECVR_RL_MEM_
+  ###############################################################################
+  ## MFP Application center configuration
+  ###############################################################################
+  mfpappcenter:
+    enabled: _AC_ENABLE_
+    repository: _IMG_REPO_/mfpf-appcenter
+    tag: _IMG_TAG_
+    consoleSecret: "_AC_CONSOLE_SECRET_"
+    db:
+      type: "_DB_TYPE_"
+      host: "_MFPF_DB_HOST_"
+      port: "_MFPF_DB_PORT_"
+      name: "_MFPF_DB_NAME_"
+      secret: "_MFPF_DB_SECRET_"
+      schema: "_AC_DB_SCHEMA_"
+      ssl: "_MFPF_DB_SSL_ENABLE_"
+      driverPvc: "_MFPF_DB_DRIVER_PVC_"
+      adminCredentialsSecret: "_MFPF_DBADMIN_CRED_SECRET_"
+    replicas: _AC_REPLICAS_
+    autoscaling:
+      enabled: _AC_AUTOSCALING_ENABLE_
+      min: _AC_AUTOSCALING_MIN_
+      max: _AC_AUTOSCALING_MAX_
+      targetcpu: _AC_AUTOSCALING_TARGET_CPU_
+    pdb:
+      enabled: _AC_PDB_ENABLE_
+      min: _AC_PDB_MIN_
+    customConfiguration: "_AC_CUST_CONFIG_"
+    keystoreSecret: "_AC_KEYSTORE_SECRET_"
+    resources:
+      requests:
+        cpu: _AC_RR_CPU_
+        memory: _AC_RR_MEM_
+      limits:
+        cpu: _AC_RL_CPU_
+        memory: _AC_RL_MEM_

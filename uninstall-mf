@@ -1,0 +1,92 @@
+#!/bin/bash
+
+export inputs_json=$1
+export JOB_NAMESPACE=$2
+
+export SCRIPT_DIR=$PWD
+export CASE_FILES_DIR="${SCRIPT_DIR}/files"
+export CASE_FILES_TEMP_DIR=${CASE_FILES_DIR}/temp-DO_NOT_DELETE
+
+if [ "$CICD" != "true" ]
+then
+    source ${CASE_FILES_DIR}/install/utils/set_colors.sh
+fi
+
+Help()
+{
+   # Display Help
+   echo
+   echo -e "To uninstall Mobile Foundation on OpenShift Cluster."
+   echo
+   echo -e "${BBlue}Syntax:${Color_Off}${Blue} ./uninstall-mf <deployment_values.json> [ <mf_deployed_namespace> ]${Color_Off}"
+   echo
+   echo -e "${BBlue}Options:${Color_Off}"
+   echo -e "${Cyan} <deployment_values.json>    Simple JSON format file with all the deployment config values.${Color_Off}"
+   echo -e "${Cyan} <mf-deployednamespace>      [Optional] Project/Namespace under which Mobile Foundation is deployed.${Color_Off}"
+   echo
+   exit 0
+}
+
+if [ -z "$inputs_json" ]
+  then
+    echo
+    echo -e "${Red}No argument supplied.${Color_Off}"
+    Help
+fi
+
+if [ ! -f "${inputs_json}" ]
+then
+	echo -e "\n${inputs_json} doesn't exists. Exiting uninstaller ...\n "
+    exit 1
+fi
+
+if [ ! -z "$JOB_NAMESPACE" ]
+then
+    oc get namespace $JOB_NAMESPACE >/dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo -e "\nProject/Namespace - $JOB_NAMESPACE doesn't exists. Exiting uninstaller ... \n"
+        exit 1
+    fi
+else
+    export JOB_NAMESPACE=$(oc config view --minify --output 'jsonpath={..namespace}')
+fi
+
+echo
+echo -e "${Bold}Uninstall Mobile Foundation procedure starting ...${Color_Off}"
+echo
+
+export _SYSGEN_MF_NAMESPACE=${JOB_NAMESPACE}
+
+elasticsearch_namespace=$(cat ${inputs_json} | jq .elasticsearch_namespace | sed 's/"//g' | xargs)
+db_namespace=$(cat ${inputs_json} | jq .db_namespace | sed 's/"//g' | xargs)
+
+export _GEN_ES_NAMESPACE=${elasticsearch_namespace:-mobilefoundation-es}
+export _GEN_DB2_NAMESPACE=${db_namespace:-mobilefoundation-db}
+
+# Create/Switch Project
+${CASE_FILES_DIR}/install/utils/create_project.sh ${_SYSGEN_MF_NAMESPACE} "mf"
+
+oc projects | grep ${_GEN_DB2_NAMESPACE} > /dev/null 2>&1
+if [ $? -eq 0 ]
+then
+    ${CASE_FILES_DIR}/install/cleanup/pre_uninstall.sh db2 ${_GEN_DB2_NAMESPACE}
+
+    # delete the DB2 project
+    ${CASE_FILES_DIR}/install/utils/delete_project.sh ${_GEN_DB2_NAMESPACE}
+fi
+
+oc projects | grep ${_GEN_ES_NAMESPACE} >/dev/null 2>&1
+if [ $? -eq 0 ]
+then
+    ${CASE_FILES_DIR}/install/cleanup/pre_uninstall.sh es ${_GEN_ES_NAMESPACE}
+
+    # delete the ES project
+    ${CASE_FILES_DIR}/install/utils/delete_project.sh ${_GEN_ES_NAMESPACE}
+fi
+
+${CASE_FILES_DIR}/install/cleanup/pre_uninstall.sh mf ${_SYSGEN_MF_NAMESPACE}
+
+
+${CASE_FILES_DIR}/install/utils/delete_project.sh ${_SYSGEN_MF_NAMESPACE}
+
